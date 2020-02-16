@@ -1,0 +1,48 @@
+syntax = "proto3";
+import "google/protobuf/empty.proto";
+
+/*
+Satellite 错误码范围 -1000 ~ -1099
+-1000 心跳包时间戳误差过大
+-1001 查询的服务名不存在
+*/
+
+message GeneralStatus {
+    int32 code = 1;
+    string message = 2;
+}
+
+service Satellite {
+    rpc Heartbeat(HeartbeatRequest) returns (GeneralStatus);
+    rpc GetCurrentVersion(google.protobuf.Empty) returns (GetCurrentVersionResponse);
+    rpc GetServiceNodes(GetServiceNodesRequest) returns (GetServiceNodesResponse);
+    rpc GetAllServiceNames(google.protobuf.Empty) returns (GetAllServiceNamesResponse);
+}
+
+message HeartbeatRequest {
+    ServiceInfo service_info = 1;
+    int64 timestamp          = 2;
+}
+
+message ServiceInfo {
+    string service_name     = 1;
+    string server_ip_port   = 2;
+    int32 weight            = 3;
+}
+
+message GetCurrentVersionResponse {
+    int64 timestamp = 1;
+}
+
+message GetServiceNodesRequest {
+    string service_name = 1;
+}
+
+message GetServiceNodesResponse {
+    GeneralStatus status       = 1;
+    repeated ServiceInfo nodes = 2;
+}
+
+message GetAllServiceNamesResponse {
+    repeated string service_names = 1;
+}
