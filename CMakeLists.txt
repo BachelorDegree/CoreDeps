@@ -8,5 +8,6 @@ INCLUDE_DIRECTORIES("include")
 
 SET(SOURCES entry.cpp)
 FILE(GLOB SOURCES ${SOURCES} "./ProtoSources/*.cc")
+FILE(GLOB SOURCES ${SOURCES} "./SatelliteClient/*.cpp")
 
 ADD_LIBRARY(coredeps STATIC ${SOURCES})
