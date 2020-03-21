@@ -47,11 +47,13 @@ public:
         VersionNum(0) { }
 };
 
-SatelliteClient SatelliteClient::_Instance;
+SatelliteClient  SatelliteClient::_Instance;
+SatelliteClient* SatelliteClient::_InstancePtr;
 
 SatelliteClient::SatelliteClient(void)
 {
     PImpl = new SatelliteClientImpl;
+    SatelliteClient::_InstancePtr = &SatelliteClient::_Instance;
 }
 
 SatelliteClient::~SatelliteClient(void)
@@ -61,7 +63,12 @@ SatelliteClient::~SatelliteClient(void)
 
 SatelliteClient& SatelliteClient::GetInstance(void)
 {
-    return SatelliteClient::_Instance;
+    return *SatelliteClient::_InstancePtr;
+}
+
+SatelliteClient& SatelliteClient::SetInstance(SatelliteClient *i)
+{
+    SatelliteClient::_InstancePtr = i;
 }
 
 void SatelliteClient::PullerFunction(void)
