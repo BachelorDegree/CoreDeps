@@ -10,7 +10,7 @@ public:
     ~SatelliteClient(void);
 
     static SatelliteClient& GetInstance(void);
-    static SatelliteClient& SetInstance(SatelliteClient *i);
+    static void SetInstance(SatelliteClient *i);
 
     void SetServer(const std::string &ip_port);
     std::string GetNode(const std::string &service);

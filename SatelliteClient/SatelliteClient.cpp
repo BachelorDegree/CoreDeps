@@ -66,7 +66,7 @@ SatelliteClient& SatelliteClient::GetInstance(void)
     return *SatelliteClient::_InstancePtr;
 }
 
-SatelliteClient& SatelliteClient::SetInstance(SatelliteClient *i)
+void SatelliteClient::SetInstance(SatelliteClient *i)
 {
     SatelliteClient::_InstancePtr = i;
 }
