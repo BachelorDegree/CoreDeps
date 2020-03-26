@@ -5,7 +5,7 @@ SET(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_CXX_FLAGS "-Wall -fPIC")
 
 INCLUDE_DIRECTORIES("include")
-add_subdirectory("libco")
+#add_subdirectory("libco")
 SET(SOURCES entry.cpp)
 FILE(GLOB SOURCES ${SOURCES} "./ProtoSources/*.cc")
 FILE(GLOB SOURCES ${SOURCES} "./SatelliteClient/*.cpp")
