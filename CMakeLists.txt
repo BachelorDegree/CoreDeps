@@ -4,10 +4,13 @@ PROJECT(CoreDeps)
 SET(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_CXX_FLAGS "-Wall -fPIC")
 INCLUDE_DIRECTORIES("include")
+
 #add_subdirectory("libco")
 SET(SOURCES entry.cpp)
 FILE(GLOB SOURCES ${SOURCES} "./ProtoSources/*.cc")
 FILE(GLOB SOURCES ${SOURCES} "./Common/*.cpp")
 FILE(GLOB SOURCES ${SOURCES} "./SatelliteClient/*.cpp")
 FILE(GLOB SOURCES ${SOURCES} "./AlohaIO/ContextHelper.cpp")
+
 ADD_LIBRARY(coredeps STATIC ${SOURCES})
+target_include_directories(coredeps INTERFACE include)

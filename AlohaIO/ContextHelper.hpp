@@ -3,25 +3,28 @@
 #include <grpcpp/client_context.h>
 #include <grpcpp/server_context.h>
 #include "alohaio.pb.h"
-class RequestContextHelper
+class ServerContextHelper
 {
 public:
-  static RequestContextHelper *GetInstance();
-  static void SetInstance(RequestContextHelper *);
+  static ServerContextHelper *GetInstance();
+  static void SetInstance(ServerContextHelper *);
   alohaio::SystemCookie &GetSystemCookieInstance();
   alohaio::UserCookie &GetUserCookieInstance();
-  void MakeContext(grpc::ClientContext &) const;
-  void ParseFromContext(const grpc::ClientContext &);
+  void MakeClientContext(grpc::ClientContext &) const;
+  void BindContext(grpc::ServerContext &);
+  int GetReturnCode() const;
+  void SetReturnCode(int);
 private:
   alohaio::SystemCookie m_oSystemCookie;
   alohaio::UserCookie m_oUserCookie;
+  grpc::ServerContext * m_pServerContext;
+  int m_iReturnCode;
 };
-class ResponseContextHelper
+class ClientContextHelper
 {
   public:
-    ResponseContextHelper(grpc::ServerContext &);
+    ClientContextHelper(grpc::ClientContext &);
     int GetReturnCode() const;
-    void SetReturnCode(int);
   private:
-    grpc::ServerContext & m_oContext;
+    grpc::ClientContext & m_oContext;
 };

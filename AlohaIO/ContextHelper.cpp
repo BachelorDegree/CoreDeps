@@ -1,42 +1,55 @@
-
+#include <string>
 #include <colib/co_routine.h>
 #include <colib/co_routine_specific.h>
 #include "ContextHelper.hpp"
-struct RequestContextHelperWrapper
+#define RETURN_CODE_NAME "ReturnCode"
+struct ServerContextHelperWrapper
 {
-  RequestContextHelper *pRequestContextHelper;
+  ServerContextHelper *pServerContextHelper;
 };
-CO_ROUTINE_SPECIFIC(RequestContextHelperWrapper, co_pRequestContextHelper);
-RequestContextHelper *RequestContextHelper::GetInstance()
+CO_ROUTINE_SPECIFIC(ServerContextHelperWrapper, co_pServerContextHelper);
+ServerContextHelper *ServerContextHelper::GetInstance()
 {
-  return co_pRequestContextHelper->pRequestContextHelper;
+  return co_pServerContextHelper->pServerContextHelper;
 }
-void RequestContextHelper::SetInstance(RequestContextHelper *pRequestContextHelper)
+void ServerContextHelper::SetInstance(ServerContextHelper *pServerContextHelper)
 {
-  co_pRequestContextHelper->pRequestContextHelper = pRequestContextHelper;
+  co_pServerContextHelper->pServerContextHelper = pServerContextHelper;
 }
-alohaio::SystemCookie &RequestContextHelper::GetSystemCookieInstance()
+alohaio::SystemCookie &ServerContextHelper::GetSystemCookieInstance()
 {
   return m_oSystemCookie;
 }
-alohaio::UserCookie &RequestContextHelper::GetUserCookieInstance()
+alohaio::UserCookie &ServerContextHelper::GetUserCookieInstance()
 {
   return m_oUserCookie;
 }
-void RequestContextHelper::MakeContext(grpc::ClientContext &) const
+void ServerContextHelper::MakeClientContext(grpc::ClientContext &) const
 {
 }
-void RequestContextHelper::ParseFromContext(const grpc::ClientContext &)
+void ServerContextHelper::BindContext(grpc::ServerContext &oContext)
+{
+  m_pServerContext = &oContext;
+}
+int ServerContextHelper::GetReturnCode() const
+{
+  return m_iReturnCode;
+}
+void ServerContextHelper::SetReturnCode(int iRet)
+{
+  m_iReturnCode = iRet;
+  m_pServerContext->AddTrailingMetadata(RETURN_CODE_NAME, std::to_string(m_iReturnCode));
+}
+
+ClientContextHelper::ClientContextHelper(grpc::ClientContext &oContext) : m_oContext(oContext)
 {
 }
-ResponseContextHelper::ResponseContextHelper(grpc::ServerContext &oContext) : m_oContext(oContext)
+int ClientContextHelper::GetReturnCode() const
 {
-  
-}
-int ResponseContextHelper::GetReturnCode() const
-{
-  return 0;
-}
-void ResponseContextHelper::SetReturnCode(int)
-{
+  if (m_oContext.GetServerTrailingMetadata().count(RETURN_CODE_NAME) > 0)
+  {
+    const auto str = m_oContext.GetServerTrailingMetadata().find(RETURN_CODE_NAME)->second;
+    return atoi(str.data());
+  }
+  return -1;
 }
