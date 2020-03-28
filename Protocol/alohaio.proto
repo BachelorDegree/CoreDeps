@@ -1,0 +1,12 @@
+syntax = "proto3";
+package alohaio;
+message ResponseContext{
+    int32 ret_code = 1; 
+}
+message SystemCookie {
+
+}
+
+message UserCookie {
+    
+}
