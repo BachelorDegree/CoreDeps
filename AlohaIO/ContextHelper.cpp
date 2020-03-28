@@ -2,7 +2,7 @@
 #include <colib/co_routine.h>
 #include <colib/co_routine_specific.h>
 #include "ContextHelper.hpp"
-#define RETURN_CODE_NAME "ReturnCode"
+#define RETURN_CODE_NAME "return-code"
 struct ServerContextHelperWrapper
 {
   ServerContextHelper *pServerContextHelper;
