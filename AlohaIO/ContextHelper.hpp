@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _CONTEXT_HEADER_HPP_
+#define _CONTEXT_HEADER_HPP_
 #include <grpc/grpc.h>
 #include <grpcpp/client_context.h>
 #include <grpcpp/server_context.h>
@@ -28,3 +29,4 @@ class ClientContextHelper
   private:
     grpc::ClientContext & m_oContext;
 };
+#endif
