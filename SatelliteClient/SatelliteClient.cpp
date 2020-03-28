@@ -164,12 +164,14 @@ RETURN:
 
 void SatelliteClient::SetServer(const std::string &ip_port)
 {
+    spdlog::info("Satellite set server: {}", ip_port);
     auto channel = grpc::CreateChannel(ip_port, grpc::InsecureChannelCredentials());
     auto stub = Satellite::NewStub(channel);
     PImpl->ServerToStubs[ip_port] = std::move(stub);
     // First satellite server added, then spwan a thread to pull
     if (PImpl->ServerToStubs.size() == 1)
     {
+        spdlog::info("Connect success");
         std::thread puller(&SatelliteClient::PullerFunction, this);
         puller.detach();
     }
