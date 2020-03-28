@@ -8,6 +8,7 @@ INCLUDE_DIRECTORIES("include")
 #add_subdirectory("libco")
 SET(SOURCES entry.cpp)
 FILE(GLOB SOURCES ${SOURCES} "./ProtoSources/*.cc")
+FILE(GLOB SOURCES ${SOURCES} "./Common/*.cpp")
 FILE(GLOB SOURCES ${SOURCES} "./SatelliteClient/*.cpp")
 
 ADD_LIBRARY(coredeps STATIC ${SOURCES})
