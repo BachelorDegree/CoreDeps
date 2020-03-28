@@ -11,6 +11,6 @@ FILE(GLOB SOURCES ${SOURCES} "./ProtoSources/*.cc")
 FILE(GLOB SOURCES ${SOURCES} "./Common/*.cpp")
 FILE(GLOB SOURCES ${SOURCES} "./SatelliteClient/*.cpp")
 FILE(GLOB SOURCES ${SOURCES} "./AlohaIO/ContextHelper.cpp")
-
+LINK_LIBRARIES(colib)
 ADD_LIBRARY(coredeps STATIC ${SOURCES})
 target_include_directories(coredeps INTERFACE include)
