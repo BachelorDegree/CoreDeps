@@ -47,13 +47,9 @@ public:
         VersionNum(0) { }
 };
 
-SatelliteClient  SatelliteClient::_Instance;
-SatelliteClient* SatelliteClient::_InstancePtr;
-
 SatelliteClient::SatelliteClient(void)
 {
     PImpl = new SatelliteClientImpl;
-    SatelliteClient::_InstancePtr = &SatelliteClient::_Instance;
 }
 
 SatelliteClient::~SatelliteClient(void)
@@ -63,24 +59,18 @@ SatelliteClient::~SatelliteClient(void)
 
 SatelliteClient& SatelliteClient::GetInstance(void)
 {
-    return *SatelliteClient::_InstancePtr;
+    static SatelliteClient oInstance;
+    return oInstance;
 }
 
-void SatelliteClient::SetInstance(SatelliteClient *i)
+void SatelliteClient::Heartbeat(void)
 {
-    SatelliteClient::_InstancePtr = i;
-}
-
-void SatelliteClient::PullerFunction(void)
-{
-    auto pimpl = this->PImpl;
     auto ts = time(nullptr);
-    // Heartbeat
     do
     {
-        for (const auto &i : pimpl->LocalServices)
+        for (const auto &i : PImpl->LocalServices)
         {
-            for (auto &stub : pimpl->ServerToStubs)
+            for (auto &stub : PImpl->ServerToStubs)
             {
                 grpc::ClientContext ctx;
                 HeartbeatRequest req;
@@ -104,6 +94,13 @@ void SatelliteClient::PullerFunction(void)
             }
         }
     } while (false);
+}
+
+void SatelliteClient::PullerFunction(void)
+{
+    auto pimpl = this->PImpl;
+    // Heartbeat
+    this->Heartbeat();
     
     // Route table
     int64_t newestVersion;
@@ -209,6 +206,8 @@ std::string SatelliteClient::GetNode(const std::string &service)
     }
     auto &sd = f->second;
     lock_guard guard(sd.Mutex);
+    if (sd.Nodes.size() == 0)
+        return string();
     if (sd.QueuePtr >= sd.Nodes.size())
         sd.QueuePtr = 0;
     return sd.Nodes[sd.QueuePtr++].IpPort;
@@ -222,4 +221,5 @@ void SatelliteClient::RegisterLocalService(const std::string &service, const std
     ioctl(inet_sock, SIOCGIFADDR, &ifr);
     string ip = inet_ntoa(((sockaddr_in*)&ifr.ifr_addr)->sin_addr);
     PImpl->LocalServices.emplace_back((LocalService) { ip.append(":").append(port), service });
+    this->Heartbeat();
 }
