@@ -48,8 +48,16 @@ int ClientContextHelper::GetReturnCode() const
 {
   if (m_oContext.GetServerTrailingMetadata().count(RETURN_CODE_NAME) > 0)
   {
-    const auto str = m_oContext.GetServerTrailingMetadata().find(RETURN_CODE_NAME)->second;
-    return atoi(str.data());
+    m_oContext.GetServerTrailingMetadata().find(RETURN_CODE_NAME)->second;
+    auto _str = m_oContext.GetServerTrailingMetadata().find(RETURN_CODE_NAME)->second;
+    std::string str{_str.data(), _str.length()};
+    str.push_back('\0');
+    int iRet;
+    if (1 != sscanf(str.data(), "%d", &iRet))
+    {
+      return -2;
+    }
+    return iRet;
   }
   return -1;
 }
