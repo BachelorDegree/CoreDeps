@@ -11,9 +11,9 @@ public:
 
     static SatelliteClient& GetInstance(void);
 
-    void SetServer(const std::string &ip_port);
-    std::string GetNode(const std::string &service);
-    void RegisterLocalService(const std::string &service, const std::string &interface, const std::string &port);
+    void SetServer(const std::string &sIpPort);
+    std::string GetNode(const std::string &sService);
+    void RegisterLocalService(const std::string &sService, const std::string &sInterface, const std::string &sPort);
 
 private:
     SatelliteClient(void);

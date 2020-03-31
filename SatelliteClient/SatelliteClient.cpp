@@ -39,9 +39,9 @@ class SatelliteClientImpl
 {
 public:
     int64_t VersionNum;
-    std::vector<LocalService>                           LocalServices;
-    std::map<string, std::unique_ptr<Satellite::Stub>>  ServerToStubs;
-    std::map<string, ServiceDescriptor>                 ServiceToDescriptor;
+    std::vector<std::string>            UpstreamServers;
+    std::vector<LocalService>           LocalServices;
+    std::map<string, ServiceDescriptor> ServiceToDescriptor;
 
     SatelliteClientImpl(void):
         VersionNum(0) { }
@@ -65,31 +65,33 @@ SatelliteClient& SatelliteClient::GetInstance(void)
 
 void SatelliteClient::Heartbeat(void)
 {
-    auto ts = time(nullptr);
+    auto iTimestamp = time(nullptr);
     do
     {
         for (const auto &i : PImpl->LocalServices)
         {
-            for (auto &stub : PImpl->ServerToStubs)
+            for (const auto &sServerIpPort : PImpl->UpstreamServers)
             {
-                grpc::ClientContext ctx;
-                HeartbeatRequest req;
-                GeneralStatus rsp;
-                req.set_timestamp(ts);
-                req.mutable_service_info()->set_weight(100);
-                req.mutable_service_info()->set_server_ip_port(i.IpPort);
-                req.mutable_service_info()->set_service_name(i.ServiceName);
-                auto ret = stub.second->Heartbeat(&ctx, req, &rsp);
-                if (!ret.ok())
+                auto pChannel = grpc::CreateChannel(sServerIpPort, grpc::InsecureChannelCredentials());
+                auto pStub = Satellite::NewStub(pChannel);
+                grpc::ClientContext oContext;
+                HeartbeatRequest oReq;
+                GeneralStatus oRsp;
+                oReq.set_timestamp(iTimestamp);
+                oReq.mutable_service_info()->set_weight(100);
+                oReq.mutable_service_info()->set_server_ip_port(i.IpPort);
+                oReq.mutable_service_info()->set_service_name(i.ServiceName);
+                auto oRet = pStub->Heartbeat(&oContext, oReq, &oRsp);
+                if (!oRet.ok())
                 {
                     spdlog::warn("Satellite.Heartbeat rpc failed, server: {}, errcode: {}, errmsg: {}", 
-                        stub.first, ret.error_code(), ret.error_message());
+                        sServerIpPort, oRet.error_code(), oRet.error_message());
                     continue;
                 }
-                if (rsp.code() != 0)
+                if (oRsp.code() != 0)
                 {
                     spdlog::error("Satellite.Heartbeat logic failed, server: {}, code: {}, msg: {}", 
-                        stub.first, rsp.code(), rsp.message());
+                        sServerIpPort, oRsp.code(), oRsp.message());
                 }
             }
         }
@@ -98,128 +100,131 @@ void SatelliteClient::Heartbeat(void)
 
 void SatelliteClient::PullerFunction(void)
 {
-    auto pimpl = this->PImpl;
     // Heartbeat
     this->Heartbeat();
     
     // Route table
-    int64_t newestVersion;
-    string satelliteServer;
+    int64_t iNewestVersion;
+    std::unique_ptr<Satellite::Stub> pStub = nullptr;
     do
     {
         // check version
-        for (auto &i : pimpl->ServerToStubs)
+        for (const auto &sServerIpPort : this->PImpl->UpstreamServers)
         {
-            grpc::ClientContext ctx;
-            google::protobuf::Empty req;
-            GetCurrentVersionResponse rsp;
-            auto ret = i.second->GetCurrentVersion(&ctx, req, &rsp);
-            if (!ret.ok())
+            auto pChannel = grpc::CreateChannel(sServerIpPort, grpc::InsecureChannelCredentials());
+            pStub = Satellite::NewStub(pChannel);
+            grpc::ClientContext oContext;
+            google::protobuf::Empty oReq;
+            GetCurrentVersionResponse oRsp;
+            auto oRet = pStub->GetCurrentVersion(&oContext, oReq, &oRsp);
+            if (!oRet.ok())
             {
                 spdlog::warn("Satellite.GetCurrentVersion rpc failed, server: {}, errcode: {}, errmsg: {}", 
-                    i.first, ret.error_code(), ret.error_message());
+                    sServerIpPort, oRet.error_code(), oRet.error_message());
                 continue;
             }
-            if (rsp.timestamp() <= pimpl->VersionNum)
+            if (oRsp.timestamp() <= this->PImpl->VersionNum)
                 goto RETURN;
-            newestVersion = rsp.timestamp();
-            satelliteServer = i.first;
+            iNewestVersion = oRsp.timestamp();
             break;
         }
     } while (false);
-    if (satelliteServer.empty())
+    if (pStub == nullptr)
     {
         spdlog::error("All satellite servers no response");
         goto RETURN;
     }
     // get new configurations
-    for (auto &sd : pimpl->ServiceToDescriptor)
+    for (auto &oDescriptor : this->PImpl->ServiceToDescriptor)
     {
-        grpc::ClientContext ctx;
-        GetServiceNodesRequest req;
-        GetServiceNodesResponse rsp;
-        req.set_service_name(sd.first);
-        auto ret = pimpl->ServerToStubs[satelliteServer]->GetServiceNodes(&ctx, req, &rsp);
-        if (!ret.ok())
+        grpc::ClientContext oContext;
+        GetServiceNodesRequest oReq;
+        GetServiceNodesResponse oRsp;
+        oReq.set_service_name(oDescriptor.first);
+        auto oRet = pStub->GetServiceNodes(&oContext, oReq, &oRsp);
+        if (!oRet.ok())
         {
-            spdlog::warn("Satellite.GetServiceNodes rpc failed, server: {}, errcode: {}, errmsg: {}", 
-                satelliteServer, ret.error_code(), ret.error_message());
+            spdlog::warn("Satellite.GetServiceNodes rpc failed, errcode: {}, errmsg: {}", 
+                oRet.error_code(), oRet.error_message());
             continue;
         }
-        lock_guard guard(sd.second.Mutex);
-        sd.second.Nodes.clear();
-        for (auto i = 0; i < rsp.nodes_size(); ++i)
+        lock_guard oGuard(oDescriptor.second.Mutex);
+        oDescriptor.second.Nodes.clear();
+        for (auto i = 0; i < oRsp.nodes_size(); ++i)
         {
-            const auto &ref = rsp.nodes(i);
-            sd.second.Nodes.emplace_back((ServiceNode){ ref.server_ip_port(), ref.weight() });
+            const auto &oServerInfo = oRsp.nodes(i);
+            oDescriptor.second.Nodes.emplace_back((ServiceNode){ oServerInfo.server_ip_port(), oServerInfo.weight() });
         }
     }
-    pimpl->VersionNum = newestVersion;
+    this->PImpl->VersionNum = iNewestVersion;
 RETURN:
     std::this_thread::sleep_for(std::chrono::seconds(15));
 }
 
-void SatelliteClient::SetServer(const std::string &ip_port)
+void SatelliteClient::SetServer(const std::string &sIpPort)
 {
-    spdlog::info("Satellite set server: {}", ip_port);
-    auto channel = grpc::CreateChannel(ip_port, grpc::InsecureChannelCredentials());
-    auto stub = Satellite::NewStub(channel);
-    PImpl->ServerToStubs[ip_port] = std::move(stub);
+    spdlog::info("Satellite upstream server added: {}", sIpPort);
+    PImpl->UpstreamServers.push_back(sIpPort);
     // First satellite server added, then spwan a thread to pull
-    if (PImpl->ServerToStubs.size() == 1)
+    if (PImpl->UpstreamServers.size() == 1)
     {
-        spdlog::info("Connect success");
-        std::thread puller(&SatelliteClient::PullerFunction, this);
-        puller.detach();
+        std::thread thPuller([this](void)
+        {
+            for ( ; ;)
+                this->PullerFunction();
+        });
+        thPuller.detach();
     }
 }
 
-std::string SatelliteClient::GetNode(const std::string &service)
+std::string SatelliteClient::GetNode(const std::string &sService)
 {
-    auto f = PImpl->ServiceToDescriptor.find(service);
-    if (f == PImpl->ServiceToDescriptor.end())
+    auto itSD = PImpl->ServiceToDescriptor.find(sService);
+    if (itSD == PImpl->ServiceToDescriptor.end())
     {
-        bool loadOK = false;
-        for (auto &i : PImpl->ServerToStubs)
+        bool bLoadOk = false;
+        for (const auto &sServerIpPort : PImpl->UpstreamServers)
         {
-            grpc::ClientContext ctx;
-            GetServiceNodesRequest req;
-            GetServiceNodesResponse rsp;
-            req.set_service_name(service);
-            auto ret = i.second->GetServiceNodes(&ctx, req, &rsp);
-            if (!ret.ok())
+            auto pChannel = grpc::CreateChannel(sServerIpPort, grpc::InsecureChannelCredentials());
+            auto pStub = Satellite::NewStub(pChannel);
+            grpc::ClientContext oContext;
+            GetServiceNodesRequest oReq;
+            GetServiceNodesResponse oRsp;
+            oReq.set_service_name(sService);
+            auto oRet = pStub->GetServiceNodes(&oContext, oReq, &oRsp);
+            if (!oRet.ok())
             {
                 spdlog::warn("Satellite.GetServiceNodes rpc failed, server: {}, errcode: {}, errmsg: {}", 
-                    i.first, ret.error_code(), ret.error_message());
+                    sServerIpPort, oRet.error_code(), oRet.error_message());
                 continue;
             }
-            auto &sd = PImpl->ServiceToDescriptor[service];
-            lock_guard guard(sd.Mutex);
-            for (auto i = 0; i < rsp.nodes_size(); ++i)
-                sd.Nodes.emplace_back((ServiceNode){ rsp.nodes(i).server_ip_port(), rsp.nodes(i).weight() });
-            f = PImpl->ServiceToDescriptor.find(service);
-            loadOK = true;
+            auto &oDescriptor = PImpl->ServiceToDescriptor[sService];
+            lock_guard oGuard(oDescriptor.Mutex);
+            for (auto i = 0; i < oRsp.nodes_size(); ++i)
+                oDescriptor.Nodes.emplace_back((ServiceNode){ oRsp.nodes(i).server_ip_port(), oRsp.nodes(i).weight() });
+            itSD = PImpl->ServiceToDescriptor.find(sService);
+            bLoadOk = true;
             break;
         }
-        if (!loadOK)
+        if (!bLoadOk)
             return string();
     }
-    auto &sd = f->second;
-    lock_guard guard(sd.Mutex);
-    if (sd.Nodes.size() == 0)
+    auto &oDescriptor = itSD->second;
+    lock_guard oGuard(oDescriptor.Mutex);
+    if (oDescriptor.Nodes.size() == 0)
         return string();
-    if (sd.QueuePtr >= sd.Nodes.size())
-        sd.QueuePtr = 0;
-    return sd.Nodes[sd.QueuePtr++].IpPort;
+    if (oDescriptor.QueuePtr >= oDescriptor.Nodes.size())
+        oDescriptor.QueuePtr = 0;
+    return oDescriptor.Nodes[oDescriptor.QueuePtr++].IpPort;
 }
 
-void SatelliteClient::RegisterLocalService(const std::string &service, const std::string &interface, const std::string &port)
+void SatelliteClient::RegisterLocalService(const std::string &sService, const std::string &sInterface, const std::string &sPort)
 {
     ifreq ifr;
-    int inet_sock = socket(AF_INET, SOCK_DGRAM, 0);
-    strcpy(ifr.ifr_ifrn.ifrn_name, interface.c_str());
-    ioctl(inet_sock, SIOCGIFADDR, &ifr);
-    string ip = inet_ntoa(((sockaddr_in*)&ifr.ifr_addr)->sin_addr);
-    PImpl->LocalServices.emplace_back((LocalService) { ip.append(":").append(port), service });
+    int iInetSock = socket(AF_INET, SOCK_DGRAM, 0);
+    strcpy(ifr.ifr_ifrn.ifrn_name, sInterface.c_str());
+    ioctl(iInetSock, SIOCGIFADDR, &ifr);
+    string sIp = inet_ntoa(((sockaddr_in*)&ifr.ifr_addr)->sin_addr);
+    PImpl->LocalServices.emplace_back((LocalService) { sIp.append(":").append(sPort), sService });
     this->Heartbeat();
 }
