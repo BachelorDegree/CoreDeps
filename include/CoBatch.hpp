@@ -54,7 +54,7 @@ public:
     while (m_iFinishTaskCnt < m_vecTaskContext.size())
     {
       co_poll(co_get_epoll_ct(), &oPollFd, 1, 0);
-      int a;
+      uint64_t a;
       read(m_iEventFd, &a, sizeof(a));
     }
     close(m_iEventFd);
@@ -92,7 +92,7 @@ private:
     auto &oTaskContext = m_vecTaskContext[iTaskIndex];
     oTaskContext.bFinish = true;
     m_iFinishTaskCnt++;
-    int a = 1;
+    uint64_t a = 1;
     write(m_iEventFd, &a, sizeof(a));
   }
   int m_iEventFd;
