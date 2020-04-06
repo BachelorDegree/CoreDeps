@@ -13,12 +13,12 @@ public:
   void operator=(const CoBatch &) = delete;
   CoBatch()
   {
-    m_bRan = false;
+    m_bRun = false;
   }
   template <class T>
   int AddTask(T func)
   {
-    assert(m_bRan == false);
+    assert(m_bRun == false);
     TaskContext oTaskContext;
     size_t iTaskIndex = m_vecTaskContext.size();
     oTaskContext.bFinish = false;
@@ -36,8 +36,8 @@ public:
   }
   int Run()
   {
-    assert(m_bRan == false);
-    m_bRan = true;
+    assert(m_bRun == false);
+    m_bRun = true;
     m_iFinishTaskCnt = 0;
     m_iEventFd = eventfd(EFD_NONBLOCK, 0);
     if (m_iEventFd < 0)
@@ -97,6 +97,6 @@ private:
   }
   int m_iEventFd;
   size_t m_iFinishTaskCnt;
-  bool m_bRan;
+  bool m_bRun;
   std::vector<TaskContext> m_vecTaskContext;
 };
