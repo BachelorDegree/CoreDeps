@@ -28,7 +28,7 @@ alohaio::UserCookie &ServerContextHelper::GetUserCookieInstance()
 }
 void ServerContextHelper::MakeClientContext(grpc::ClientContext &oContext) const
 {
-  oContext.AddMetadata(CALLER_INTERFACE_NAME, this->GetCallerInterfaceName());
+  oContext.AddMetadata(CALLER_INTERFACE_NAME, this->GetCalleeInterfaceName());
 }
 void ServerContextHelper::SetCalleeInterfaceName(const std::string &str)
 {
@@ -53,7 +53,7 @@ void ServerContextHelper::BindContext(grpc::ServerContext &oContext)
   {
     if (oPair.first == CALLER_INTERFACE_NAME)
     {
-      this->SetCallerInterfaceName(oPair.second.data());
+      this->SetCallerInterfaceName(std::string{oPair.second.data(), oPair.second.size()});
     }
   }
 }
